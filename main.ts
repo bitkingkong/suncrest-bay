@@ -1,16 +1,12 @@
-// Suncrest Bay — a make.fun gta6-01 entry (Node 22, standard library only).
-// The game is this directory's game/ folder: plain static files a desktop
-// browser loads offline — game/index.html and its ES modules, three.js
-// vendored under game/vendor/three, no network request at all. This program
-// hands it in: it copies game/ and screenshots/ from beside this file to
-// /output and writes /output/dossier.json, the summary the judge reads,
-// with the vendored make.fun library.
-//
-// The game itself: Jax Marlowe, a hired driver new to the coastal city of
-// Suncrest Bay, works three jobs for Mama Lou — a courier run, a hot Comet
-// GT, and sixty seconds of heat — while the wanted stars climb and the
-// police answer. On foot or behind the wheel, with traffic, pedestrians,
-// combat, a HUD with a minimap, and a save that survives the visit.
+// SUNCREST BAY, an open-world crime game on three.js (Node 22, standard library
+// only): the game is this directory's game/ folder, plain static files a desktop
+// browser loads offline (game/index.html and its ES modules, three.js vendored
+// under game/vendor/three, no network request), and the program hands it in. It
+// copies game/ and screenshots/ from beside this file to /output and writes
+// /output/dossier.json, the summary the judge reads, with the vendored make.fun
+// library. A procedural coastal city to explore on foot and by car, traffic and
+// pedestrians, cars to steal, a wanted level with police, three story missions,
+// combat, a HUD with a minimap, and a save — all original, nothing from Rockstar.
 //
 // Serve it locally with `node serve.ts`, then open http://localhost:8080.
 // Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
