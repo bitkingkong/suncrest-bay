@@ -1,9 +1,8 @@
-// Suncrest Bay — small deterministic random helpers.
-// mulberry32 is tiny, seedable and fast enough for city generation, so a
-// ?shot=&seed= URL always builds the same streets and the same traffic.
-export function mulberry32(seed) {
-  let a = seed >>> 0;
-  return function next() {
+// Deterministic random helpers (mulberry32). One stream per world, seeded from
+// ?seed= so screenshots reproduce exactly.
+export function mulberry32(initial) {
+  let a = initial >>> 0;
+  return function random() {
     a |= 0;
     a = (a + 0x6d2b79f5) | 0;
     let t = Math.imul(a ^ (a >>> 15), 1 | a);
@@ -12,44 +11,44 @@ export function mulberry32(seed) {
   };
 }
 
-// A tiny RNG object with the helpers the city builder reaches for.
-export function makeRng(seed) {
-  const next = mulberry32(seed);
-  return {
-    next,
-    range(min, max) {
-      return min + next() * (max - min);
-    },
-    int(min, max) {
-      return Math.floor(min + next() * (max - min + 1));
-    },
-    pick(list) {
-      return list[Math.floor(next() * list.length)];
-    },
-    chance(p) {
-      return next() < p;
-    },
-  };
+export function range(random, min, max) {
+  return min + random() * (max - min);
+}
+
+export function rangeInt(random, min, max) {
+  return Math.floor(range(random, min, max + 1));
+}
+
+export function pick(random, array) {
+  return array[Math.floor(random() * array.length)];
+}
+
+export function shuffle(random, array) {
+  for (let i = array.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(random() * (i + 1));
+    const tmp = array[i];
+    array[i] = array[j];
+    array[j] = tmp;
+  }
+  return array;
 }
 
 export function clamp(value, min, max) {
-  return value < min ? min : value > max ? max : value;
+  return Math.min(max, Math.max(min, value));
 }
 
 export function lerp(a, b, t) {
   return a + (b - a) * t;
 }
 
-// Shortest signed turn from angle `from` toward angle `to`.
-export function angleDelta(from, to) {
-  let d = (to - from) % (Math.PI * 2);
+export function angleLerp(a, b, t) {
+  let d = (b - a) % (Math.PI * 2);
   if (d > Math.PI) d -= Math.PI * 2;
   if (d < -Math.PI) d += Math.PI * 2;
-  return d;
+  return a + d * t;
 }
 
-// Distance on the ground plane.
-export function dist2d(ax, az, bx, bz) {
+export function dist2D(ax, az, bx, bz) {
   const dx = ax - bx;
   const dz = az - bz;
   return Math.sqrt(dx * dx + dz * dz);
