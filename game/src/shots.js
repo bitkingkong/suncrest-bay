@@ -1,16 +1,23 @@
-// Suncrest Bay — the deterministic screenshot scenes behind ?shot=.
-// Each scene plays the real rules forward from a fresh world for a fixed
-// number of steps, steered by a scripted input, so the frame is what real
-// play looks like and the same seed always gives the same frame. Steps run
-// with rendering off (world.step(dt, { render: false })); the boot code
-// paints the final frame for real.
-import { fakeInput } from './input.js';
-
-const STEP = 1 / 60;
+// Deterministic screenshot scenes behind ?shot=start|play|chase|mission.
+// Each one stages the real game (no mock rendering), steps it forward with a
+// scripted driver, and leaves a frame that a short game really looks like.
+// The same seed always gives the same frame.
+function fakeInput(throttle, steer) {
+  return {
+    moveX: () => steer,
+    moveY: () => throttle,
+    sprint: () => false,
+    handbrake: () => false,
+    mouseHeld: () => false,
+    takeOrbit: () => ({ dx: 0, dy: 0 }),
+    wasPressed: () => false,
+    endFrame: () => {},
+  };
+}
 
 function stepFor(world, seconds) {
-  const steps = Math.round(seconds / STEP);
-  for (let i = 0; i < steps; i += 1) world.step(STEP, { render: false });
+  const steps = Math.round(seconds * 60);
+  for (let i = 0; i < steps; i += 1) world.step(1 / 60, { render: false });
 }
 
 export function stageShot(name, world) {
@@ -37,24 +44,6 @@ export function stageShot(name, world) {
     // Drive straight down the avenue; the camera eases in behind the car.
     world.setAutopilotInput(fakeInput(1, 0));
     stepFor(world, 5);
-    if (name === 'chase') {
-      // The interceptors spawned during the drive; pull them in tight
-      // behind the player's car for the final frame, on the same avenue,
-      // then let the chase run a moment longer so they close in.
-      const lead = state.drivenCar;
-      state.policeCars.forEach((cop, i) => {
-        const back = 3 + i * 3;
-        const side = -(3 + i);
-        cop.x = lead.x - Math.sin(lead.heading) * back + Math.cos(lead.heading) * side;
-        cop.z = lead.z - Math.cos(lead.heading) * back - Math.sin(lead.heading) * side;
-        cop.heading = lead.heading;
-        cop.speed = 34;
-        cop.chaseOffset = -side;
-        cop.mesh.position.set(cop.x, 0, cop.z);
-        cop.mesh.rotation.y = cop.heading;
-      });
-      stepFor(world, 0.7);
-    }
     world.setAutopilotInput(null);
     return { screen: 'play' };
   }
@@ -62,6 +51,7 @@ export function stageShot(name, world) {
     world.setScreen('play');
     world.startGame(true);
     world.startMissionDebug(1);
+    world.showMissionBanner();
     const comet = state.parked.find((c) => c.comet);
     world.teleportPlayer(comet.x + 4, comet.z + 3);
     state.player.heading = Math.atan2(comet.x - state.player.x, comet.z - state.player.z);
@@ -69,9 +59,6 @@ export function stageShot(name, world) {
     world.setAutopilotInput(fakeInput(0, 0));
     stepFor(world, 1.5);
     world.setAutopilotInput(null);
-    // Raise the mission banner last, with a long life, so it is still up
-    // when the screenshot lands.
-    world.showMissionBanner(30000);
     return { screen: 'play' };
   }
   // start (default): the title screen over a slow orbit of the city.
