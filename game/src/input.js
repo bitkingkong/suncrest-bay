@@ -1,135 +1,125 @@
-// Suncrest Bay — keyboard + mouse input.
-// Held keys are read every frame; one-shot presses (pause, enter car,
-// punch, reload, mute, horn) are queued as flags and taken once, so a
-// press between two frames is never lost and never counted twice.
-// The camera orbits while the pointer drags.
-export const PRESS_ENTER_CAR = 1;
-export const PRESS_PUNCH = 2;
-export const PRESS_RELOAD = 4;
-export const PRESS_PAUSE = 8;
-export const PRESS_MUTE = 16;
-export const PRESS_HORN = 32;
-export const PRESS_SHOOT = 64;
+// Keyboard + mouse input. WASD moves, mouse drag orbits the camera, and every
+// action key reports a pressed edge exactly once per keydown.
+export const ACTION_ENTER = 'enter';
+export const ACTION_PUNCH = 'punch';
+export const ACTION_SHOOT = 'shoot';
+export const ACTION_RELOAD = 'reload';
+export const ACTION_PAUSE = 'pause';
+export const ACTION_MUTE = 'mute';
+export const ACTION_HORN = 'horn';
+export const ACTION_JUMP = 'jump';
+export const ACTION_SPRINT = 'sprint';
 
-const MOVE_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
+const KEY_ACTIONS = {
+  KeyE: ACTION_ENTER,
+  KeyF: ACTION_PUNCH,
+  KeyR: ACTION_RELOAD,
+  KeyP: ACTION_PAUSE,
+  Escape: ACTION_PAUSE,
+  KeyM: ACTION_MUTE,
+  KeyH: ACTION_HORN,
+  Space: ACTION_JUMP,
+  ShiftLeft: ACTION_SPRINT,
+  ShiftRight: ACTION_SPRINT,
+};
 
 export function createInput(canvas) {
   const keys = new Set();
-  let pressed = 0;
-  let orbitDx = 0;
-  let orbitDy = 0;
-  let dragging = false;
+  const pressed = new Set();
+  let mouseDown = false;
+  let orbitDX = 0;
+  let orbitDY = 0;
   let lastX = 0;
   let lastY = 0;
-  let mouseHeld = false;
+  let dragging = false;
 
   function onKeyDown(event) {
-    if (event.repeat) {
-      if (MOVE_KEYS.has(event.code)) event.preventDefault();
-      return;
-    }
+    if (event.repeat) return;
     keys.add(event.code);
-    if (event.code === 'KeyE') pressed |= PRESS_ENTER_CAR;
-    else if (event.code === 'KeyF') pressed |= PRESS_PUNCH;
-    else if (event.code === 'KeyR') pressed |= PRESS_RELOAD;
-    else if (event.code === 'KeyP' || event.code === 'Escape') pressed |= PRESS_PAUSE;
-    else if (event.code === 'KeyM') pressed |= PRESS_MUTE;
-    else if (event.code === 'KeyH') pressed |= PRESS_HORN;
-    if (MOVE_KEYS.has(event.code) || event.code === 'Space') event.preventDefault();
+    const action = KEY_ACTIONS[event.code];
+    if (action) pressed.add(action);
+    if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.code)) {
+      event.preventDefault();
+    }
   }
-
   function onKeyUp(event) {
     keys.delete(event.code);
   }
-
-  function onPointerDown(event) {
-    mouseHeld = true;
-    dragging = true;
-    lastX = event.clientX;
-    lastY = event.clientY;
-    canvas.setPointerCapture?.(event.pointerId);
-  }
-
-  function onPointerMove(event) {
-    if (!dragging) return;
-    orbitDx += event.clientX - lastX;
-    orbitDy += event.clientY - lastY;
-    lastX = event.clientX;
-    lastY = event.clientY;
-  }
-
-  function onPointerUp(event) {
-    mouseHeld = false;
-    dragging = false;
-    // A click (no drag) while playing fires the pistol.
-    if (Math.abs(event.clientX - lastX) < 6 && Math.abs(event.clientY - lastY) < 6) {
-      pressed |= PRESS_SHOOT;
+  function onMouseDown(event) {
+    if (event.button === 0) {
+      mouseDown = true;
+      pressed.add(ACTION_SHOOT);
     }
+    if (event.button === 2) {
+      dragging = true;
+      lastX = event.clientX;
+      lastY = event.clientY;
+    }
+  }
+  function onMouseUp(event) {
+    if (event.button === 0) mouseDown = false;
+    if (event.button === 2) dragging = false;
+  }
+  function onMouseMove(event) {
+    if (!dragging) return;
+    orbitDX += event.clientX - lastX;
+    orbitDY += event.clientY - lastY;
+    lastX = event.clientX;
+    lastY = event.clientY;
+  }
+  function onContextMenu(event) {
+    event.preventDefault();
+  }
+  function onBlur() {
+    keys.clear();
+    mouseDown = false;
+    dragging = false;
   }
 
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
-  window.addEventListener('blur', () => keys.clear());
-  canvas.addEventListener('pointerdown', onPointerDown);
-  canvas.addEventListener('pointermove', onPointerMove);
-  canvas.addEventListener('pointerup', onPointerUp);
-  canvas.addEventListener('pointercancel', onPointerUp);
+  canvas.addEventListener('mousedown', onMouseDown);
+  window.addEventListener('mouseup', onMouseUp);
+  window.addEventListener('mousemove', onMouseMove);
+  canvas.addEventListener('contextmenu', onContextMenu);
+  window.addEventListener('blur', onBlur);
 
   return {
-    held(code) {
-      return keys.has(code);
+    // Held movement keys, camera-relative.
+    moveX() {
+      let x = 0;
+      if (keys.has('KeyA') || keys.has('ArrowLeft')) x -= 1;
+      if (keys.has('KeyD') || keys.has('ArrowRight')) x += 1;
+      return x;
     },
-    // -1..1 forward/back and left/right, from WASD or arrows.
-    move() {
-      const f = (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0);
-      const s = (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0);
-      return { forward: f, strafe: s };
+    moveY() {
+      let y = 0;
+      if (keys.has('KeyW') || keys.has('ArrowUp')) y += 1;
+      if (keys.has('KeyS') || keys.has('ArrowDown')) y -= 1;
+      return y;
     },
-    run() {
+    sprint() {
       return keys.has('ShiftLeft') || keys.has('ShiftRight');
-    },
-    jump() {
-      return keys.has('Space');
     },
     handbrake() {
       return keys.has('Space');
     },
     mouseHeld() {
-      return mouseHeld;
+      return mouseDown;
     },
+    // Consume the orbit delta accumulated since the last call (pixels).
     takeOrbit() {
-      const out = { dx: orbitDx, dy: orbitDy };
-      orbitDx = 0;
-      orbitDy = 0;
+      const out = { dx: orbitDX, dy: orbitDY };
+      orbitDX = 0;
+      orbitDY = 0;
       return out;
     },
-    takePressed() {
-      const out = pressed;
-      pressed = 0;
-      return out;
-    },
-    wasPressed(flag) {
-      return (pressed & flag) !== 0;
+    // True once per keydown; callers check then clear at the end of the frame.
+    wasPressed(action) {
+      return pressed.has(action);
     },
     endFrame() {
-      pressed = 0;
+      pressed.clear();
     },
-  };
-}
-
-// A fake input for scripted scenes (screenshots, autopilot): the world
-// reads it exactly like the real keyboard.
-export function fakeInput(forward, strafe) {
-  return {
-    held: () => false,
-    move: () => ({ forward, strafe }),
-    run: () => false,
-    jump: () => false,
-    handbrake: () => false,
-    mouseHeld: () => false,
-    takeOrbit: () => ({ dx: 0, dy: 0 }),
-    takePressed: () => 0,
-    wasPressed: () => false,
-    endFrame: () => {},
   };
 }
