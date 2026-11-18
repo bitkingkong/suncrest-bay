@@ -1,112 +1,87 @@
-// Suncrest Bay — tuning & world constants.
-// One place for every number the rest of the game shares: city layout,
-// player and car physics, wanted rules, combat numbers and mission payouts.
+// SUNCREST BAY — shared constants. All original: a fictional coastal city.
 export const CITY = {
-  blocks: 5, // 5x5 blocks
-  blockSize: 40, // metres per block
-  roadWidth: 12, // metres per road
-  half: 136, // half the built-up span (5*40 + 6*12) / 2
+  blocks: 5,
+  blockSize: 40,
+  roadWidth: 12,
+  // Road centre lines (both axes), derived: 5*40 + 6*12 = 272 wide, half 136.
+  roadCenters: [-136, -84, -32, 20, 72, 124],
+  blockCenters: [-110, -58, -6, 46, 98],
+  half: 136,
+  seaStart: 150,
 };
-
-// Road centre lines, one per gap between (and around) the blocks.
-export const ROAD_CENTRES = [-130, -78, -26, 26, 78, 130];
-// Block centre lines.
-export const BLOCK_CENTRES = [-104, -52, 0, 52, 104];
 
 export const PLAYER = {
   walkSpeed: 4.2,
-  runSpeed: 7.5,
-  jumpSpeed: 7.0,
-  gravity: 20,
+  runSpeed: 7.2,
+  jumpSpeed: 7.5,
   radius: 0.55,
-  maxHp: 100,
-  punchRange: 2.2,
-  punchDamage: 25,
-  punchCooldown: 0.45,
-  pistolAmmo: 12,
-  pistolDamage: 34,
-  pistolRange: 60,
-  shootCooldown: 0.28,
+  health: 100,
 };
 
 export const CAR = {
   accel: 16,
-  brake: 30,
-  reverseAccel: 9,
-  maxSpeed: 34,
-  maxReverse: 10,
-  steer: 1.9,
-  handbrake: 40,
-  drag: 0.55,
+  brake: 26,
+  reverseAccel: 10,
+  maxSpeed: 30,
+  maxReverse: 9,
+  steerRate: 1.9,
+  handbrake: 30,
+  radius: 2.3,
 };
 
 export const WANTED = {
-  decaySeconds: 25, // -1 star after this long with no crime and police far away
-  policeFar: 42, // police beyond this count as "far" for decay
   maxStars: 5,
-  bustDistance: 2.2, // foot cop this close starts the bust clock
-  bustSeconds: 1.5,
-  bustFine: 100,
-  wastedFine: 50,
-  footCopsAt: 3, // wanted level that adds foot police
-  maxPoliceCars: 4,
+  decaySeconds: 25,
+  policeCars: [0, 1, 2, 3, 3, 4],
+  footCops: [0, 0, 1, 2, 2, 3],
 };
 
-export const TRAFFIC = {
-  cars: 10,
-  peds: 14,
-  carSpeedMin: 6,
-  carSpeedMax: 11,
-  pedSpeedMin: 1.1,
-  pedSpeedMax: 1.9,
-};
-
-// Mission chain: name, payout, objective text and where it happens.
 export const MISSIONS = [
   {
     id: 'courier',
-    name: 'Pesan Antar',
+    title: 'Pesan Antar',
+    giver: 'Mama Lou',
+    briefing: 'Paket di Harbor harus sampai ke Diner Marina. Jangan sampai telat, Jax.',
     reward: 150,
-    timeLimit: 90,
-    giver: 'Mama Lou',
-    intro: 'Mama Lou: "Jax, ambil paket di Harbor dan antar ke Diner Marina. Jangan telat!"',
+    objectives: [
+      { type: 'goto', text: 'Ambil paket di dermaga Harbor', x: -110, z: 124, radius: 5 },
+      { type: 'deliver', text: 'Antar paket ke Diner Marina (90 dtk)', x: 98, z: -110, radius: 6, timeLimit: 90 },
+    ],
   },
   {
-    id: 'hotcar',
-    name: 'Mobil Titipan',
-    reward: 300,
-    timeLimit: 0,
+    id: 'towjob',
+    title: 'Mobil Titipan',
     giver: 'Dex',
-    intro: 'Dex: "Ada Comet GT merah di lot Downtown. Bawa ke bengkelku, jangan sampai lecet."',
+    briefing: 'Comet GT merah terparkir di lot Downtown. Bawa ke bengkelku, tanpa goresan kalau bisa.',
+    reward: 300,
+    objectives: [
+      { type: 'stealCar', text: 'Curi Comet GT merah di lot Downtown', car: 'comet' },
+      { type: 'deliverCar', text: 'Bawa Comet GT ke bengkel Dex di Old Town', x: -110, z: -58, radius: 7 },
+    ],
   },
   {
-    id: 'heat',
-    name: 'Panas Dingin',
-    reward: 500,
-    timeLimit: 60,
+    id: 'heatwave',
+    title: 'Panas Dingin',
     giver: 'Mama Lou',
-    intro: 'Mama Lou: "Polisi panas, Jax. Bertahan 60 detik, lalu menghilang ke hideout Old Town."',
+    briefing: 'Polisi sudah mengendusmu. Bertahan 60 detik, lalu menghilang ke hideout Old Town.',
+    reward: 500,
+    objectives: [
+      { type: 'survive', text: 'Bertahan dari kejaran polisi (60 dtk)', timeLimit: 60, wanted: 3 },
+      { type: 'escape', text: 'Capai hideout di Old Town', x: -58, z: 46, radius: 6 },
+    ],
   },
 ];
 
-export const PICKUPS = {
-  medkitHeal: 40,
-  ammoAmount: 12,
+export const SAVE_KEY = 'suncrest-save-v1';
+export const PALETTE = {
+  sky: 0x87b5d6,
+  fog: 0xa8c4d4,
+  sun: 0xfff2d0,
+  ground: 0x9aa078,
+  sand: 0xd9c08a,
+  sea: 0x2e7f9e,
+  road: 0x2e3138,
+  sidewalk: 0x8f9296,
+  building: [0xe8b4a0, 0xa8c4b0, 0xd6c49a, 0xb0b8d6, 0xe0a8b8, 0x9fc4d6],
+  carColors: [0xc23b2e, 0x2e6fc2, 0xe8c832, 0x3aa655, 0xe8e8e8, 0x22242a, 0x7a4a9e, 0xd97b2e],
 };
-
-export const SAVE_KEY = 'suncrest-bay-save-v1';
-
-// Named places on the map (x, z). The districts give the city its story:
-// Harbor by the south docks, Downtown in the middle, Marina diner by the
-// east shore, Dex's garage in Old Town, the hideout tucked behind it.
-export const PLACES = {
-  harbor: { x: -104, z: 104, label: 'Harbor' },
-  diner: { x: 104, z: 52, label: 'Diner Marina' },
-  downtownLot: { x: 26, z: -26, label: 'Lot Downtown' },
-  garage: { x: -52, z: -104, label: 'Bengkel Dex' },
-  hideout: { x: -104, z: -52, label: 'Hideout Old Town' },
-  hospital: { x: 52, z: 104, label: 'Rumah Sakit' },
-  spawn: { x: -26, z: 78, label: 'Apartemen Jax' },
-};
-
-export const DISTRICT_NAMES = ['Harbor', 'Old Town', 'Downtown', 'Marina', 'Uptown'];
