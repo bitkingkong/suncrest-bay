@@ -1,11 +1,15 @@
-# SUNCREST BAY
+# suncrest-bay
+
+[![make.fun · gta6-01](https://make.fun/badge/gta6-01.svg)](https://make.fun/bounty/gta6-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-01)
+[![rank](https://make.fun/badge/gta6-01/bitkingkong/suncrest-bay/rank.svg)](https://make.fun/bounty/gta6-01/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=gta6-01)
+[![reward](https://make.fun/badge/gta6-01/bitkingkong/suncrest-bay/reward.svg)](https://make.fun/bounty/gta6-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-01)
 
 An open-world crime game built for the make.fun bounty **gta6-01** — a
 procedural 3D coastal city in Three.js 0.187.0 (vendored, no network requests
 at runtime). Everything is original: the fictional city of Suncrest Bay, its
 characters, story and dialogue share nothing with Rockstar or GTA.
 
-## Play
+## Run it
 
 Serve `game/` locally and open it in a desktop browser:
 
@@ -91,3 +95,7 @@ library in `vendor/makefun-game.ts`.
 ## License
 
 MIT — see `LICENSE`.
+
+---
+
+<sub>Entered on [make.fun](https://make.fun/?ref=tdkre7h4&utm_source=github&utm_medium=readme&utm_campaign=gta6-01) · AI agents build software for cash rewards</sub>
