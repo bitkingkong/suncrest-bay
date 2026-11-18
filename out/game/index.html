@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SUNCREST BAY — Open World Crime</title>
+<style>
+  :root {
+    --ink: #f2ede0;
+    --muted: #b9bec6;
+    --accent: #ff5fa2;
+    --good: #7fb069;
+    --bad: #e65a4e;
+    --gold: #e8c832;
+    --panel: rgba(12, 16, 22, 0.72);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #10141a; color: var(--ink); font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
+  #game, #game canvas { position: fixed; inset: 0; display: block; }
+  #hud { position: fixed; inset: 0; pointer-events: none; }
+  #hud.hidden { display: none; }
+  #topleft { position: absolute; top: 14px; left: 14px; background: var(--panel); border-radius: 8px; padding: 10px 14px; min-width: 190px; }
+  #cash { font-size: 26px; font-weight: 800; color: var(--gold); letter-spacing: 0.5px; }
+  #health-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+  #health-bar { flex: 1; height: 10px; background: #33383f; border-radius: 5px; overflow: hidden; }
+  #health-fill { height: 100%; width: 100%; background: var(--good); }
+  #health-text { font: 700 13px ui-monospace, Menlo, monospace; min-width: 28px; text-align: right; }
+  #ammo { margin-top: 6px; font: 700 13px ui-monospace, Menlo, monospace; color: var(--muted); }
+  #wanted { position: absolute; top: 14px; right: 14px; font-size: 30px; letter-spacing: 4px; color: var(--gold); text-shadow: 0 2px 8px rgba(0,0,0,0.7); }
+  #wanted.hot { color: var(--bad); }
+  #objective-wrap { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); background: var(--panel); border-radius: 8px; padding: 8px 16px; max-width: 46%; text-align: center; }
+  #objective { font-size: 15px; font-weight: 600; }
+  #objective-timer { font: 700 13px ui-monospace, Menlo, monospace; color: var(--gold); }
+  #minimap { position: absolute; right: 14px; bottom: 14px; width: 180px; height: 180px; border-radius: 8px; border: 2px solid #555c66; background: #10141a; }
+  #speed { position: absolute; right: 14px; bottom: 204px; font: 800 22px ui-monospace, Menlo, monospace; color: var(--ink); text-shadow: 0 2px 6px rgba(0,0,0,0.8); }
+  #hint { position: absolute; left: 14px; bottom: 14px; font-size: 12px; color: var(--muted); background: var(--panel); padding: 6px 10px; border-radius: 6px; max-width: 46%; }
+  #crosshair { position: fixed; left: 50%; top: 50%; width: 0; height: 0; }
+  #crosshair i { position: absolute; background: var(--ink); opacity: 0.9; }
+  #crosshair i:nth-child(1) { left: -1px; top: -13px; width: 2px; height: 7px; }
+  #crosshair i:nth-child(2) { left: -1px; top: 6px; width: 2px; height: 7px; }
+  #crosshair i:nth-child(3) { top: -1px; left: -13px; height: 2px; width: 7px; }
+  #crosshair i:nth-child(4) { top: -1px; left: 6px; height: 2px; width: 7px; }
+  #banner { position: absolute; top: 22%; left: 50%; transform: translateX(-50%); text-align: center; opacity: 0; transition: opacity 200ms linear; }
+  #banner.show { opacity: 1; }
+  #banner-title { font-size: 38px; font-weight: 900; letter-spacing: 1px; text-shadow: 0 3px 12px rgba(0,0,0,0.9); }
+  #banner-sub { font-size: 16px; color: var(--muted); text-shadow: 0 2px 8px rgba(0,0,0,0.9); }
+  .overlay { position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; background: linear-gradient(rgba(8,12,18,0.45), rgba(8,12,18,0.88)); z-index: 10; }
+  .overlay.show { display: flex; }
+  .overlay h1 { font-size: 64px; margin: 0; letter-spacing: 6px; color: var(--ink); text-shadow: 0 4px 24px rgba(0,0,0,0.9); }
+  .overlay h1 .bay { color: var(--accent); }
+  .overlay h2 { font-size: 40px; margin: 0 0 8px; }
+  .overlay p { max-width: 560px; color: var(--muted); font-size: 16px; line-height: 1.5; margin: 10px 0; }
+  .overlay .tagline { color: var(--gold); font-weight: 700; letter-spacing: 2px; text-transform: uppercase; font-size: 13px; }
+  .overlay button { pointer-events: auto; margin: 8px 6px 0; padding: 12px 28px; font-size: 16px; font-weight: 700; border: none; border-radius: 8px; background: var(--accent); color: #fff; cursor: pointer; }
+  .overlay button.secondary { background: #33383f; color: var(--ink); }
+  .overlay button:hover { filter: brightness(1.15); }
+  #title-stats { color: var(--gold); font-weight: 700; margin: 6px 0; }
+  .controls { font-size: 13px; color: var(--muted); }
+  #err { position: fixed; left: 0; bottom: 0; z-index: 99; color: #ff8080; font: 12px ui-monospace, Menlo, monospace; background: rgba(0,0,0,0.6); padding: 2px 6px; max-width: 100%; }
+  #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+</style>
+</head>
+<body>
+<canvas id="game" aria-label="Suncrest Bay: an open-world crime game"></canvas>
+<div id="hud" class="hidden">
+  <div id="topleft">
+    <div id="cash">$0</div>
+    <div id="health-row"><div id="health-bar"><div id="health-fill"></div></div><span id="health-text">100</span></div>
+    <div id="ammo">Pistol 12</div>
+  </div>
+  <div id="wanted">☆☆☆☆☆</div>
+  <div id="objective-wrap"><div id="objective"></div><div id="objective-timer"></div></div>
+  <canvas id="minimap" width="180" height="180"></canvas>
+  <div id="speed"></div>
+  <div id="hint"></div>
+  <div id="crosshair"><i></i><i></i><i></i><i></i></div>
+  <div id="banner"><div id="banner-title"></div><div id="banner-sub"></div></div>
+</div>
+
+<div id="title-screen" class="overlay">
+  <div class="tagline">An open-world crime game</div>
+  <h1>SUNCREST <span class="bay">BAY</span></h1>
+  <p>Jax Marlowe, sopir sewaan, baru sampai di Suncrest Bay — dan kota ini sudah
+  menunggunya dengan tiga pekerjaan dari Mama Lou. Jelajahi kota dengan berjalan
+  kaki atau curi mobil, hindari polisi, dan selesaikan ketiga misi.</p>
+  <div id="title-stats"></div>
+  <div>
+    <button id="btn-continue">Continue</button>
+    <button id="btn-new">New Game</button>
+  </div>
+  <p class="controls">WASD gerak · Shift lari · Mouse drag putar kamera · E masuk/keluar mobil ·
+  F pukul · Klik kiri tembak · R reload · P pause · M mute</p>
+</div>
+
+<div id="pause-screen" class="overlay">
+  <h2>Jeda</h2>
+  <p>Permainan dijeda. Progres tersimpan otomatis tiap misi selesai.</p>
+  <div>
+    <button id="btn-resume">Lanjutkan</button>
+    <button id="btn-save" class="secondary">Save</button>
+    <button id="btn-restart" class="secondary">Restart</button>
+  </div>
+  <p id="save-note"></p>
+</div>
+
+<div id="busted-screen" class="overlay">
+  <h2>BUSTED!</h2>
+  <p>Polisi Suncrest Bay menangkapmu. $100 hilang sebagai denda, dan kamu
+  bangun di rumah sakit Old Town.</p>
+  <div><button id="btn-busted">Lanjutkan</button></div>
+</div>
+
+<div id="wasted-screen" class="overlay">
+  <h2>WASTED</h2>
+  <p>Jax tumbang di jalanan Suncrest Bay. $50 hilang, dan kamu bangun di
+  rumah sakit Old Town.</p>
+  <div><button id="btn-wasted">Lanjutkan</button></div>
+</div>
+
+<p id="status" role="status" aria-live="polite"></p>
+<div id="err"></div>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/three.module.min.js" } }
+</script>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
