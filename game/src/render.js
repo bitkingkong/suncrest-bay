@@ -1,92 +1,71 @@
-// Suncrest Bay — the 3D view: renderer, camera and its follow behaviour.
-// The camera is a third-person orbit: it trails behind the player or the
-// car, the player drags to look around, and on the title screen it slowly
-// circles the whole city. Nothing here knows the rules; the world hands it
-// a focus point and a heading each frame.
+// Three.js scene, sun, sky and the third-person follow camera. Rendering only;
+// the rules live in world.js.
 import * as THREE from 'three';
-import { clamp, lerp } from './random.js';
+import { PALETTE } from './config.js';
+import { angleLerp, clamp, lerp } from './random.js';
 
-export function createView(canvas) {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+export function createRenderer(canvas) {
+  const renderer = new THREE.WebGLRenderer({
+    canvas, antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: true,
+  });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  return renderer;
+}
 
+export function createScene() {
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(62, 1, 0.1, 900);
+  scene.background = new THREE.Color(PALETTE.sky);
+  scene.fog = new THREE.Fog(PALETTE.fog, 180, 420);
+  const hemi = new THREE.HemisphereLight(0xbfd9e8, 0x8a7a5a, 0.9);
+  scene.add(hemi);
+  const sun = new THREE.DirectionalLight(PALETTE.sun, 2.2);
+  sun.position.set(120, 180, 60);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.left = -180;
+  sun.shadow.camera.right = 180;
+  sun.shadow.camera.top = 180;
+  sun.shadow.camera.bottom = -180;
+  sun.shadow.camera.far = 500;
+  sun.shadow.bias = -0.0004;
+  scene.add(sun);
+  scene.add(sun.target);
+  return { scene, sun };
+}
 
-  let yaw = Math.PI; // behind the player, looking north (-z) at spawn
-  let pitch = 0.42;
-  let distance = 8;
-  let focus = new THREE.Vector3(0, 1.5, 60);
-  let titleAngle = 0.6;
-
-  function resize() {
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    renderer.setSize(w, h, false);
-    camera.aspect = w / h;
-    camera.updateProjectionMatrix();
-  }
-  resize();
-  window.addEventListener('resize', resize);
-
-  // Drag deltas from input: yaw around, pitch up/down within limits.
-  function applyOrbit(dx, dy) {
-    yaw -= dx * 0.005;
-    pitch = clamp(pitch + dy * 0.003, 0.12, 1.15);
-  }
-
-  function updateCamera(targetX, targetZ, targetHeading, inCar, dt) {
-    const wantDist = inCar ? 11 : 7.5;
-    const wantHeight = inCar ? 4.6 : 3.4;
-    distance = lerp(distance, wantDist, Math.min(1, dt * 3));
-    // Ease the camera behind the direction of travel.
-    const behind = targetHeading + Math.PI;
-    let dyaw = behind - yaw;
-    while (dyaw > Math.PI) dyaw -= Math.PI * 2;
-    while (dyaw < -Math.PI) dyaw += Math.PI * 2;
-    yaw += dyaw * Math.min(1, dt * 1.6);
-    const cx = targetX + Math.sin(yaw) * Math.cos(pitch) * distance;
-    const cz = targetZ + Math.cos(yaw) * Math.cos(pitch) * distance;
-    const cy = wantHeight + Math.sin(pitch) * distance * 0.6;
-    focus.x = lerp(focus.x, targetX, Math.min(1, dt * 8));
-    focus.y = lerp(focus.y, 1.6, Math.min(1, dt * 8));
-    focus.z = lerp(focus.z, targetZ, Math.min(1, dt * 8));
-    camera.position.set(
-      lerp(camera.position.x, cx, Math.min(1, dt * 10)),
-      lerp(camera.position.y, cy, Math.min(1, dt * 10)),
-      lerp(camera.position.z, cz, Math.min(1, dt * 10)),
-    );
-    camera.lookAt(focus.x, focus.y, focus.z);
-  }
-
-  function updateTitleCamera(dt) {
-    titleAngle += dt * 0.045;
-    const r = 150;
-    camera.position.set(Math.sin(titleAngle) * r, 62, Math.cos(titleAngle) * r);
-    camera.lookAt(0, 8, 0);
-  }
-
-  function render() {
-    renderer.render(scene, camera);
-  }
-
+// Third-person camera: orbits the player, follows behind while driving.
+export function createCamera() {
+  const camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 800);
   return {
-    renderer,
-    scene,
     camera,
-    resize,
-    applyOrbit,
-    updateCamera,
-    updateTitleCamera,
-    render,
-    get yaw() {
-      return yaw;
+    yaw: Math.PI,
+    pitch: 0.32,
+    distance: 10,
+    update(targetX, targetY, targetZ, targetHeading, driving, dt, orbit) {
+      this.yaw -= orbit.dx * 0.005;
+      this.pitch = clamp(this.pitch + orbit.dy * 0.004, 0.08, 1.1);
+      // While driving the camera eases behind the car; on foot it stays free.
+      if (driving) {
+        const behind = targetHeading + Math.PI;
+        this.yaw = angleLerp(this.yaw, behind, Math.min(1, dt * 1.8));
+      }
+      const dist = driving ? 13 : 9.5;
+      const height = driving ? 5 : 3.6;
+      this.distance = lerp(this.distance, dist, Math.min(1, dt * 3));
+      const cx = targetX - Math.sin(this.yaw) * Math.cos(this.pitch) * this.distance;
+      const cz = targetZ - Math.cos(this.yaw) * Math.cos(this.pitch) * this.distance;
+      const cy = targetY + Math.sin(this.pitch) * this.distance + height * 0.4;
+      this.camera.position.set(cx, cy, cz);
+      this.camera.lookAt(targetX, targetY + 1.6, targetZ);
     },
-    set yaw(v) {
-      yaw = v;
+    resize() {
+      this.camera.aspect = window.innerWidth / window.innerHeight;
+      this.camera.updateProjectionMatrix();
     },
   };
 }
