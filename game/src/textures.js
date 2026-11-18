@@ -1,122 +1,99 @@
-// Suncrest Bay — procedural canvas textures.
-// Every texture is painted at load from a 2D canvas: window grids for the
-// tower blocks, lane dashes for the asphalt, slabs for the sidewalks and
-// planks for the docks. No image files, no network, nothing copyrighted.
-export function makeWindowTexture(rng) {
-  const c = document.createElement('canvas');
-  c.width = 128;
-  c.height = 256;
-  const g = c.getContext('2d');
-  g.fillStyle = '#8a7a63';
-  g.fillRect(0, 0, 128, 256);
-  const cols = 5;
-  const rows = 10;
-  const cw = 128 / cols;
-  const rh = 256 / rows;
-  for (let y = 0; y < rows; y += 1) {
-    for (let x = 0; x < cols; x += 1) {
-      const lit = rng.chance(0.42);
-      const shade = rng.int(0, 3);
-      g.fillStyle = lit ? ['#ffd97a', '#ffe9a8', '#f7c95c', '#ffdf8a'][shade] : ['#20242c', '#262b33', '#1c2027', '#2b313b'][shade];
-      g.fillRect(x * cw + 3, y * rh + 4, cw - 6, rh - 8);
+// Canvas-generated textures: building facades with lit windows, road asphalt with
+// lane dashes, sidewalk slabs. No image files, no network, all procedural.
+import * as THREE from 'three';
+import { mulberry32 } from './random.js';
+
+function makeCanvas(width, height) {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  return [canvas, canvas.getContext('2d')];
+}
+
+export function buildingTexture(baseColor, seed) {
+  const random = mulberry32(seed);
+  const [canvas, ctx] = makeCanvas(128, 256);
+  ctx.fillStyle = baseColor;
+  ctx.fillRect(0, 0, 128, 256);
+  // Slight vertical shade at the base.
+  const shade = ctx.createLinearGradient(0, 200, 0, 256);
+  shade.addColorStop(0, 'rgba(0,0,0,0)');
+  shade.addColorStop(1, 'rgba(0,0,0,0.35)');
+  ctx.fillStyle = shade;
+  ctx.fillRect(0, 200, 128, 56);
+  // Window grid: some lit warm, some dark.
+  const cols = 6;
+  const rows = 12;
+  for (let r = 0; r < rows; r += 1) {
+    for (let c = 0; c < cols; c += 1) {
+      const lit = random() < 0.35;
+      ctx.fillStyle = lit ? '#ffd98a' : '#2c3542';
+      ctx.fillRect(10 + c * 19, 12 + r * 20, 12, 13);
+      ctx.fillStyle = 'rgba(255,255,255,0.08)';
+      ctx.fillRect(10 + c * 19, 12 + r * 20, 12, 3);
     }
   }
-  // A darker ground-floor band: shops and doors at street level.
-  g.fillStyle = '#5d5346';
-  g.fillRect(0, 256 - 26, 128, 26);
-  g.fillStyle = '#2c2118';
-  g.fillRect(52, 256 - 24, 24, 24);
-  return c;
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 4;
+  return texture;
 }
 
-export function makeRoadTexture() {
-  const c = document.createElement('canvas');
-  c.width = 128;
-  c.height = 128;
-  const g = c.getContext('2d');
-  g.fillStyle = '#33363b';
-  g.fillRect(0, 0, 128, 128);
-  // Speckle so the asphalt is not a flat slab.
-  for (let i = 0; i < 260; i += 1) {
-    const v = 40 + Math.floor(Math.random() * 26);
-    g.fillStyle = `rgb(${v},${v + 2},${v + 4})`;
-    g.fillRect(Math.random() * 128, Math.random() * 128, 2, 2);
+export function roadTexture() {
+  const [canvas, ctx] = makeCanvas(128, 128);
+  ctx.fillStyle = '#2e3138';
+  ctx.fillRect(0, 0, 128, 128);
+  // Asphalt speckle.
+  for (let i = 0; i < 900; i += 1) {
+    const v = Math.floor(40 + Math.random() * 30);
+    ctx.fillStyle = `rgb(${v},${v},${v + 6})`;
+    ctx.fillRect(Math.floor(Math.random() * 128), Math.floor(Math.random() * 128), 2, 2);
   }
-  // Centre dashes, repeated by the texture wrap.
-  g.fillStyle = '#d8d4c2';
-  g.fillRect(62, 8, 4, 44);
-  g.fillRect(62, 76, 4, 44);
-  return c;
+  // Edge lines.
+  ctx.fillStyle = '#c8c8a8';
+  ctx.fillRect(0, 4, 128, 3);
+  ctx.fillRect(0, 121, 128, 3);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  return texture;
 }
 
-export function makeSidewalkTexture() {
-  const c = document.createElement('canvas');
-  c.width = 128;
-  c.height = 128;
-  const g = c.getContext('2d');
-  g.fillStyle = '#b9b4a4';
-  g.fillRect(0, 0, 128, 128);
-  g.strokeStyle = '#9a9484';
-  g.lineWidth = 2;
+export function sidewalkTexture() {
+  const [canvas, ctx] = makeCanvas(128, 128);
+  ctx.fillStyle = '#8f9296';
+  ctx.fillRect(0, 0, 128, 128);
+  ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+  ctx.lineWidth = 2;
   for (let i = 0; i <= 4; i += 1) {
-    g.beginPath();
-    g.moveTo(i * 32, 0);
-    g.lineTo(i * 32, 128);
-    g.stroke();
-    g.beginPath();
-    g.moveTo(0, i * 32);
-    g.lineTo(128, i * 32);
-    g.stroke();
+    ctx.beginPath();
+    ctx.moveTo(i * 32, 0);
+    ctx.lineTo(i * 32, 128);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, i * 32);
+    ctx.lineTo(128, i * 32);
+    ctx.stroke();
   }
-  return c;
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  return texture;
 }
 
-export function makeSandTexture() {
-  const c = document.createElement('canvas');
-  c.width = 128;
-  c.height = 128;
-  const g = c.getContext('2d');
-  g.fillStyle = '#e0c98f';
-  g.fillRect(0, 0, 128, 128);
-  for (let i = 0; i < 320; i += 1) {
-    const v = 200 + Math.floor(Math.random() * 40);
-    g.fillStyle = `rgb(${v},${Math.floor(v * 0.85)},${Math.floor(v * 0.55)})`;
-    g.fillRect(Math.random() * 128, Math.random() * 128, 2, 2);
+export function sandTexture() {
+  const [canvas, ctx] = makeCanvas(128, 128);
+  ctx.fillStyle = '#d9c08a';
+  ctx.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 500; i += 1) {
+    ctx.fillStyle = Math.random() < 0.5 ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.12)';
+    ctx.fillRect(Math.floor(Math.random() * 128), Math.floor(Math.random() * 128), 2, 2);
   }
-  return c;
-}
-
-export function makeOceanTexture() {
-  const c = document.createElement('canvas');
-  c.width = 128;
-  c.height = 128;
-  const g = c.getContext('2d');
-  const grad = g.createLinearGradient(0, 0, 0, 128);
-  grad.addColorStop(0, '#2f7fa8');
-  grad.addColorStop(1, '#1d5c82');
-  g.fillStyle = grad;
-  g.fillRect(0, 0, 128, 128);
-  g.strokeStyle = 'rgba(255,255,255,0.35)';
-  g.lineWidth = 2;
-  for (let y = 12; y < 128; y += 26) {
-    g.beginPath();
-    for (let x = 0; x <= 128; x += 8) g.lineTo(x, y + Math.sin(x * 0.2 + y) * 3);
-    g.stroke();
-  }
-  return c;
-}
-
-// A soft radial glow used for the mission light pillar and the pickup rings.
-export function makeGlowTexture() {
-  const c = document.createElement('canvas');
-  c.width = 64;
-  c.height = 64;
-  const g = c.getContext('2d');
-  const grad = g.createRadialGradient(32, 32, 2, 32, 32, 30);
-  grad.addColorStop(0, 'rgba(255,255,255,0.9)');
-  grad.addColorStop(0.5, 'rgba(255,255,255,0.25)');
-  grad.addColorStop(1, 'rgba(255,255,255,0)');
-  g.fillStyle = grad;
-  g.fillRect(0, 0, 64, 64);
-  return c;
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  return texture;
 }
